@@ -35,7 +35,7 @@ service = build('sheets', 'v4', credentials=creds)
 spreadsheet_id = os.getenv('sheet_id')
 range_name = "'Infoo ja osallistujat'!C66:Q86"
 bed_range = "'Infoo ja osallistujat'!C110:G131"
-score_range = "'Infoo ja osallistujat'!AN28:AT45"
+score_range = "'Infoo ja osallistujat'!AN28:AT46"
 
 
 # Define the time zone
@@ -161,7 +161,7 @@ def get_teams_string(games):
     return result_string
 
 def is_mokki_game(game):
-    mokki_start = mokki_time
+    mokki_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
     game_time = datetime.strptime(game["date"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
     return mokki_end > game_time and mokki_start < game_time and game["state"] == 3
 
