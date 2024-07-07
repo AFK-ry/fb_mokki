@@ -2,7 +2,7 @@
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters, InlineQueryHandler, CallbackContext, CallbackQueryHandler
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 import os.path
@@ -44,8 +44,9 @@ finnish_tz = pytz.timezone('Europe/Helsinki')
 # Define the signup, payment, mokki start, and mokki end times in Finnish time
 signup_time = finnish_tz.localize(datetime(2024, 5, 10, 13, 37, 0))
 payment_time = finnish_tz.localize(datetime(2024, 6, 3, 13, 37, 0))
-mokki_time = finnish_tz.localize(datetime(2024, 7, 19, 16, 0, 0))
+mokki_time = finnish_tz.localize(datetime(2024, 7, 18, 16, 0, 0))
 mokki_end = finnish_tz.localize(datetime(2024, 7, 21, 12, 0, 0))
+season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
 
 def signup_is_live():
     current_time = datetime.now(finnish_tz)
@@ -104,6 +105,12 @@ def get_games():
     except requests.exceptions.RequestException as e:
         print(f"Error: {e}")
         return None
+
+def hours_since_mokki_time():
+    current_time = datetime.now(finnish_tz)
+    time_difference = current_time - season_start
+    hours_difference = time_difference.total_seconds() / 3600
+    return hours_difference
         
 def create_fair_games(players, numb_games):
 
@@ -161,9 +168,15 @@ def get_teams_string(games):
     return result_string
 
 def is_mokki_game(game):
-    mokki_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
+    mokki_start = season_start
     game_time = datetime.strptime(game["date"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
     return mokki_end > game_time and mokki_start < game_time and game["state"] == 3
+
+def is_recent_game(game, hours=24):
+    now = datetime.now(finnish_tz)
+    seperator = now - timedelta(hours=hours)
+    game_time = datetime.strptime(game["date"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
+    return seperator < game_time and game["state"] == 3
 
 async def mokki_ilmo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
@@ -241,7 +254,7 @@ async def maksettu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ).execute()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Kiitos maksusta. {} nukkuu sijalla {}".format(name, bed_count + 1))
 
-async def sijoitukset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+def get_sijoituket():
     signups = service.spreadsheets().values().get(
             spreadsheetId=spreadsheet_id,
             range=score_range
@@ -263,7 +276,10 @@ async def sijoitukset(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             player['change'] = player['score'] - original
             result.append(player)
-    result = sorted(result, key=lambda x: x['change'], reverse=True)
+    return sorted(result, key=lambda x: x['change'], reverse=True)
+
+async def sijoitukset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    result = get_sijoituket()
     return_text = ''
     for index, player in enumerate(result):
         return_text += '{}. {} - {} ({})\n'.format(index + 1, player['name'], player['score'], player['change'])
@@ -323,7 +339,7 @@ async def kaljaa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     names = signups.get('values', [])
     names = [cell for cell in names if cell]
     names_only = [cell[0] for cell in names if cell]
-    players = get_players()
+    players = get_sijoituket()
     games = get_games()
     result = []
     mokki_players = []
@@ -333,6 +349,7 @@ async def kaljaa(update: Update, context: ContextTypes.DEFAULT_TYPE):
             mokki_players.append({'name': name, 'score': 'ei löytynyt', 'kaljaa': 0})
         else:
             player["kaljaa"] = 0
+            player["score"] = player["score"]
             mokki_players.append(player)
     for game in games:
         if(is_mokki_game(game)):
@@ -341,9 +358,63 @@ async def kaljaa(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if len(found_player) > 0:
                     found_player[0]["kaljaa"] += 2.66666 * ( game["team1_score"] + game["team2_score"] )
     mokki_players = sorted(mokki_players, key=lambda x: x['kaljaa'], reverse=True)
-    return_text = ''
+    total_beer = sum(player['kaljaa'] for player in mokki_players)
+    return_text = 'Nimi - Kaljoja | Elo per kalja\n'
     for index, player in enumerate(mokki_players):
-        return_text += '{}. {} - {}\n'.format(index + 1, player['name'], round(player['kaljaa'], 2))
+        print(player)
+        try:
+            elo_beer = round(player["change"] / player["kaljaa"], 2)
+        except:
+            elo_beer = "NaN"
+        return_text += '{}. {} - {} | {}\n'.format(index + 1, player['name'], round(player['kaljaa'], 2), elo_beer)
+    hours = hours_since_mokki_time()
+    print(hours)
+    return_text += f"\nKaljaa yhteensä: {round(total_beer + 0.009, 2)}"
+    return_text += f"\nKaljaa per tunti: {round(total_beer / hours, 2)}"
+
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
+
+async def peleja(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    signups = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=score_range
+        ).execute()
+    names = signups.get('values', [])
+    names = [cell for cell in names if cell]
+    names_only = [cell[0] for cell in names if cell]
+
+    message = update.message.text.split(" ", 1)
+
+    if(len(message) == 2):
+        try:
+            hours = int(message[1])
+        except:
+            hours = 24
+    else:
+        hours = 24
+
+    players = get_players()
+    games = list(filter(is_mokki_game, get_games()))
+    games = list(filter(lambda game: is_recent_game(game, hours), games))
+    result = []
+    mokki_players = []
+    for index, name in enumerate(names_only):
+        player = find_player(players, name)
+        if player == -1:
+            mokki_players.append({'name': name, 'games': 0})
+        else:
+            player["games"] = 0
+            mokki_players.append(player)
+    for game in games:
+        for player in game["players"]:
+            found_player = list(filter(lambda mokkilainen: mokkilainen["name"] == player["name"], mokki_players))
+            if len(found_player) > 0:
+                found_player[0]["games"] += 1
+    mokki_players = sorted(mokki_players, key=lambda x: x['games'], reverse=True)    
+    return_text = 'Nimi - pelatut pelit {}h aikana\n'.format(hours)
+    for index, player in enumerate(mokki_players):
+        return_text += '{}. {} - {}\n'.format(index + 1, player['name'], player['games'])
+
     await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
             
 async def kys(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -431,6 +502,7 @@ if __name__ == '__main__':
     tiimi_handler = CommandHandler('tiimit', create_teams)
     kys_handler = CommandHandler('kys', kys)
     kalja_handler = CommandHandler('kaljaa', kaljaa)
+    peleja_handler = CommandHandler('peleja', peleja)
 
     application.add_handler(mokki_handler)
     application.add_handler(mokki_reply_handler)
@@ -440,6 +512,7 @@ if __name__ == '__main__':
     application.add_handler(tiimi_handler)
     application.add_handler(kys_handler)
     application.add_handler(kalja_handler)
+    application.add_handler(peleja_handler)
 
     
     application.run_polling()
