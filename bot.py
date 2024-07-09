@@ -48,7 +48,7 @@ finnish_tz = pytz.timezone('Europe/Helsinki')
 # Define the signup, payment, mokki start, and mokki end times in Finnish time
 signup_time = finnish_tz.localize(datetime(2024, 5, 10, 13, 37, 0))
 signup_end = finnish_tz.localize(datetime(2024, 7, 9, 3, 0, 0))
-payment_time = finnish_tz.localize(datetime(2024, 7, 15, 13, 37, 0))
+payment_time = finnish_tz.localize(datetime(2024, 7, 10, 13, 37, 0))
 mokki_time = finnish_tz.localize(datetime(2024, 7, 18, 16, 0, 0))
 mokki_end = finnish_tz.localize(datetime(2024, 7, 21, 12, 0, 0))
 season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
@@ -524,23 +524,19 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     names = [cell for cell in names if cell]
     names_only = [cell[0] for cell in names if cell]
     name1 = choice(names_only)
-    name2 = choice(names_only)
+    name2 = choice(list(filter(lambda x: x != name1, names_only)))
     phrases = [f"Laturin hakee {name1}.", f"Viititkö {name1} hakea laturin?", f"Haekko {name1} laturin?", f"Käy {name1} hakee laturi."]
     places = ["mökkiin", "vessaan", "volvoon", "huoneeseensa", "Ouluun", "parisänkyyn", "johonkin", "laturimökkiin", "yöpöydälle", "reppuun"]
     devices = ["oneplussan", "iphonen", "huawein", "jbl:n", "teslan", "samsungin"]
     colors = ["punanen", "sininen", "musta", "valkonen", "pinkki", "hajonnut", "harmaa"]
-    while name1 == name2:
-        name2 = choice(names_only)
-    hasPlace = random()
     place = ''
-    if hasPlace < 0.5:
-        place = f"{name2} jätti sen {choice(places)}."
-    hasType = random()
+    if random() < 0.5:
+        place = f" {name2} jätti sen {choice(places)}."
     type = ''
-    if hasType < 0.5:
-        type = f"Semmonen {choice(colors)} {choice(devices)} laturi."
-    phrase = phrases[int(random()*3)]
-    response = f"{phrase} {place} {type}"
+    if random() < 0.5:
+        type = f" Semmonen {choice(colors)} {choice(devices)} laturi."
+    phrase = choice(phrases)
+    response = f"{phrase}{place}{type}"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
     
 
