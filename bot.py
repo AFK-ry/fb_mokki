@@ -11,8 +11,12 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 import requests
 import itertools
-from random import shuffle
+from random import shuffle, random, choice
 import pytz
+
+max_int = 2147483647
+
+
 
 load_dotenv()
 
@@ -43,7 +47,8 @@ finnish_tz = pytz.timezone('Europe/Helsinki')
 
 # Define the signup, payment, mokki start, and mokki end times in Finnish time
 signup_time = finnish_tz.localize(datetime(2024, 5, 10, 13, 37, 0))
-payment_time = finnish_tz.localize(datetime(2024, 6, 3, 13, 37, 0))
+signup_end = finnish_tz.localize(datetime(2024, 7, 9, 3, 0, 0))
+payment_time = finnish_tz.localize(datetime(2024, 7, 15, 13, 37, 0))
 mokki_time = finnish_tz.localize(datetime(2024, 7, 18, 16, 0, 0))
 mokki_end = finnish_tz.localize(datetime(2024, 7, 21, 12, 0, 0))
 season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
@@ -51,6 +56,11 @@ season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
 def signup_is_live():
     current_time = datetime.now(finnish_tz)
     target_time = signup_time
+    return current_time > target_time
+
+def signup_is_dead():
+    current_time = datetime.now(finnish_tz)
+    target_time = signup_end
     return current_time > target_time
 
 def payment_is_live():
@@ -111,6 +121,11 @@ def hours_since_mokki_time():
     time_difference = current_time - season_start
     hours_difference = time_difference.total_seconds() / 3600
     return hours_difference
+
+def pick_random_line(filename):
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+    return choice(lines)
         
 def create_fair_games(players, numb_games):
 
@@ -174,14 +189,19 @@ def is_mokki_game(game):
 
 def is_recent_game(game, hours=24):
     now = datetime.now(finnish_tz)
-    seperator = now - timedelta(hours=hours)
+    try:
+        seperator = now - timedelta(hours=hours)
+    except OverflowError:
+        return True
     game_time = datetime.strptime(game["date"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
     return seperator < game_time and game["state"] == 3
 
 async def mokki_ilmo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if(signup_is_live() != True):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Ilmo ei ole auki. Palaa asiaan 10.5 klo 13:37")    
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Ilmo ei ole auki. Palaa asiaan 10.5 klo 13:37")   
+    elif(signup_is_dead() == True): 
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Ilmo on päättynyt. Ole yhteydessä järjestäjään jos vielä haluat mukaan")   
     elif(len(args) < 1):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Kerro kuka olet '/mokille <mökkeilijän nimi>'")
     elif(update.message.chat.type != 'private'):
@@ -361,15 +381,14 @@ async def kaljaa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_beer = sum(player['kaljaa'] for player in mokki_players)
     return_text = 'Nimi - Kaljoja | Elo per kalja\n'
     for index, player in enumerate(mokki_players):
-        print(player)
         try:
             elo_beer = round(player["change"] / player["kaljaa"], 2)
         except:
             elo_beer = "NaN"
         return_text += '{}. {} - {} | {}\n'.format(index + 1, player['name'], round(player['kaljaa'], 2), elo_beer)
     hours = hours_since_mokki_time()
-    print(hours)
     return_text += f"\nKaljaa yhteensä: {round(total_beer + 0.009, 2)}"
+    return_text += f"\nKaljaa euroissa (1.27 kpl): {round((total_beer + 0.009)*1.27, 2)}€"
     return_text += f"\nKaljaa per tunti: {round(total_beer / hours, 2)}"
 
     await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
@@ -394,7 +413,7 @@ async def peleja(update: Update, context: ContextTypes.DEFAULT_TYPE):
         hours = 24
 
     players = get_players()
-    games = list(filter(is_mokki_game, get_games()))
+    games = get_games()
     games = list(filter(lambda game: is_recent_game(game, hours), games))
     result = []
     mokki_players = []
@@ -418,20 +437,26 @@ async def peleja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
             
 async def kys(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        response = requests.get("https://v2.jokeapi.dev/joke/Dark?blacklistFlags=racist")
-        joke = response.json()
-        joke_string = ""
-        if joke["type"] == "single":
-            joke_string = joke["joke"]
-        elif joke["type"] == "twopart":
-            joke_string = joke["setup"] + "\n\n" + joke["delivery"]
-        else:
-            joke_string = "Jotain meni vikaan"
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=joke_string)
-    except requests.exceptions.RequestException as e:
-        print(f"Error: {e}")
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Kyssäsin")
+    random_number = random()
+    if random_number < 0.5:
+        files = ['mattoteline.txt']
+        line = pick_random_line(choice(files))
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=line)
+    else:
+        try:
+            response = requests.get("https://v2.jokeapi.dev/joke/Dark?blacklistFlags=racist")
+            joke = response.json()
+            joke_string = ""
+            if joke["type"] == "single":
+                joke_string = joke["joke"]
+            elif joke["type"] == "twopart":
+                joke_string = joke["setup"] + "\n\n" + joke["delivery"]
+            else:
+                joke_string = "Jotain meni vikaan"
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=joke_string)
+        except requests.exceptions.RequestException as e:
+            print(f"Error: {e}")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Kyssäsin")
 
 
 async def button(update: Update, context: CallbackContext):
@@ -490,6 +515,18 @@ async def button(update: Update, context: CallbackContext):
         await query.edit_message_text(text="Ei sitten, ehkä ens kerralla")
 
 
+async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    signups = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=score_range
+        ).execute()
+    names = signups.get('values', [])
+    names = [cell for cell in names if cell]
+    names_only = [cell[0] for cell in names if cell]
+    response = f"Laturin hakee {choice(names_only)}"
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
+    
+
         
 if __name__ == '__main__':
     application = ApplicationBuilder().token(token).build()
@@ -503,6 +540,7 @@ if __name__ == '__main__':
     kys_handler = CommandHandler('kys', kys)
     kalja_handler = CommandHandler('kaljaa', kaljaa)
     peleja_handler = CommandHandler('peleja', peleja)
+    laturi_handler = CommandHandler('laturi', laturi)
 
     application.add_handler(mokki_handler)
     application.add_handler(mokki_reply_handler)
@@ -513,6 +551,7 @@ if __name__ == '__main__':
     application.add_handler(kys_handler)
     application.add_handler(kalja_handler)
     application.add_handler(peleja_handler)
+    application.add_handler(laturi_handler)
 
     
     application.run_polling()
@@ -525,3 +564,5 @@ if __name__ == '__main__':
 # tiimit - /tiimit <pelien määrä> <rand>
 # kys - ???
 # kaljaa - Mökillä juodut kaljat
+# peleja -  Pelejä viimeisen x tunnin aikana
+# laturi - Kuka hakee laturin
