@@ -523,7 +523,24 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     names = signups.get('values', [])
     names = [cell for cell in names if cell]
     names_only = [cell[0] for cell in names if cell]
-    response = f"Laturin hakee {choice(names_only)}"
+    name1 = choice(names_only)
+    name2 = choice(names_only)
+    phrases = [f"Laturin hakee {name1}.", f"Viititkö {name1} hakea laturin?", f"Haekko {name1} laturin?", f"Käy {name1} hakee laturi."]
+    places = ["mökkiin", "vessaan", "volvoon", "huoneeseensa", "Ouluun", "parisänkyyn", "johonkin", "laturimökkiin", "yöpöydälle", "reppuun"]
+    devices = ["oneplussan", "iphonen", "huawein", "jbl:n", "teslan", "samsungin"]
+    colors = ["punanen", "sininen", "musta", "valkonen", "pinkki", "hajonnut", "harmaa"]
+    while name1 == name2:
+        name2 = choice(names_only)
+    hasPlace = random()
+    place = ''
+    if hasPlace < 0.5:
+        place = f"{name2} jätti sen {choice(places)}."
+    hasType = random()
+    type = ''
+    if hasType < 0.5:
+        type = f"Semmonen {choice(colors)} {choice(devices)} laturi."
+    phrase = phrases[int(random()*3)]
+    response = f"{phrase} {place} {type}"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
     
 
