@@ -172,10 +172,12 @@ def create_random_games(players, numb_games):
     return result
 
 def create_ready_games():
-    games = list(filter(lambda game: game["state"] == 1, get_games()))
+    games = list(filter(lambda game: game["state"] == 0, get_games()))
     result = []
     for game in games:
         players = game["players"]
+        if len(players) != 6:
+            continue
         shuffle(players)
         team1 = [players[0], players[1], players[2]]
         team2 = [players[3], players[4], players[5]]
