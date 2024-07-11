@@ -548,16 +548,28 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name1 = choice(names_only)
     name2 = choice(list(filter(lambda x: x != name1, names_only)))
     phrases = [f"Laturin hakee {name1}.", f"Viititkö {name1} hakea laturin?", f"Haekko {name1} laturin?", f"Käy {name1} hakee laturi."]
-    places = ["mökkiin", "vessaan", "volvoon", "huoneeseensa", "Ouluun", "parisänkyyn", "johonkin", "laturimökkiin", "yöpöydälle", "reppuun"]
-    devices = ["oneplussan", "iphonen", "huawein", "jbl:n", "teslan", "samsungin"]
-    colors = ["punanen", "sininen", "musta", "valkonen", "pinkki", "hajonnut", "harmaa"]
-    place = ''
-    if random() < 0.5:
-        place = f" {name2} jätti sen {choice(places)}."
-    type = ''
-    if random() < 0.5:
-        type = f" Semmonen {choice(colors)} {choice(devices)} laturi."
-    phrase = choice(phrases)
+    places = ["mökkiin", "vessaan", "volvoon", "huoneeseensa", "Ouluun", "parisänkyyn", "johonkin", "laturimökkiin", "yöpöydälle", "reppuun", "saunaan", "järveen", "pakuun"]
+    devices = ["oneplussan", "iphonen", "huawein", "jbl:n", "teslan", "samsungin", "läppärin"]
+    colors = ["punanen", "sininen", "musta", "valkonen", "pinkki", "hajonnut", "harmaa", "huono", "lyhyt", "pitkä", "vanha"]
+
+    if random() < 0.2:
+        current_time = datetime.now(finnish_tz)
+        hours, remainder = divmod(current_time.seconds, 3600)
+        name1 = names_only[(hours*7)%len(names_only)]
+        name2 = names_only[(hours*7+1)%len(names_only)]
+        name3 = names_only[(hours*7+2)%len(names_only)]
+        phrase = f"Nyt on paha tilanne!!! {name1} sun on pakko hakia laturi!!"
+        place = f" {name2} ja {name3} käytti sitä viimeksi ja ne vei sen äsken mukanaan {places[(hours*7)%len(places)]}!!"
+        type = f" Niillä pitäs olla ainakin {colors[(hours*7)%len(colors)]} {devices[(hours*7)%len(devices)]} laturi mutta ota kaikki mitä löydät!"
+    else:
+        place = ''
+        if random() < 0.5:
+            place = f" {name2} jätti sen {choice(places)}."
+        type = ''
+        if random() < 0.5:
+            type = f" Semmonen {choice(colors)} {choice(devices)} laturi."
+        phrase = choice(phrases)
+
     response = f"{phrase}{place}{type}"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
     
