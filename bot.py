@@ -171,6 +171,19 @@ def create_random_games(players, numb_games):
         result.append((team1, team2))
     return result
 
+def create_ready_games():
+    games = list(filter(lambda game: game["state"] == 0 or game['state'] == 1, get_games()))
+    result = []
+    for game in games:
+        players = game["players"]
+        if len(players) != 6:
+            continue
+        shuffle(players)
+        team1 = [players[0], players[1], players[2]]
+        team2 = [players[3], players[4], players[5]]
+        result.append((team1, team2))
+    return result
+
 def get_teams_string(games):
     result_string = ""
     for game in games:
@@ -308,17 +321,20 @@ async def sijoitukset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def create_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     numb_teams = 3
-    if mokki_is_live() is False:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Ei tehdä tiimejä ennen mökkiä")
-        return    
+    # if mokki_is_live() is False:
+    #     await context.bot.send_message(chat_id=update.effective_chat.id, text="Ei tehdä tiimejä ennen mökkiä")
+    #     return    
     if len(args) > 0:
         try:
-            numb_teams = int(args[0])
-            if numb_teams < 1 or numb_teams > 3:
-                await context.bot.send_message(chat_id=update.effective_chat.id, text="Ensimmäisen argumentin pitää olla numero 1|2|3")
-                return    
+            if(args[0] == "ready"):
+                pass
+            else:
+                numb_teams = int(args[0])
+                if numb_teams < 1 or numb_teams > 3:
+                    await context.bot.send_message(chat_id=update.effective_chat.id, text="Ensimmäisen argumentin pitää olla numero 1|2|3 tai 'ready'")
+                    return    
         except ValueError:
-            await context.bot.send_message(chat_id=update.effective_chat.id, text="Ensimmäisen argumentin pitää olla numero 1|2|3")
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Ensimmäisen argumentin pitää olla numero 1|2|3 tai 'ready'")
             return
     if len(args) == 2 and args[1] != "rand":
         await context.bot.send_message(chat_id=update.effective_chat.id, text="toinen argumentti voi olla 'rand' randomeille tiimeille")
@@ -343,9 +359,15 @@ async def create_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result.append({'name': name, 'score': 0})
         else:
             result.append(player)
-    if len(args) == 2:
+    if len(args) == 2 and args[1] == "rand":
         games = create_random_games(result, numb_teams)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=get_teams_string(games))
+    elif len(args) == 1 and args[0] == "ready":
+        games = create_ready_games()
+        if len(games) == 0:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text="Ei valmiita pelejä")
+        else:
+            await context.bot.send_message(chat_id=update.effective_chat.id, text=get_teams_string(games))
     else:
         games = create_fair_games(result, numb_teams)
         await context.bot.send_message(chat_id=update.effective_chat.id, text=get_teams_string(games))
