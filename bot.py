@@ -554,7 +554,7 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if random() < 0.2:
         current_time = datetime.now(finnish_tz)
-        hours, remainder = divmod(current_time.seconds, 3600)
+        hours, remainder = divmod(current_time.second, 3600)
         name1 = names_only[(hours*7)%len(names_only)]
         name2 = names_only[(hours*7+1)%len(names_only)]
         name3 = names_only[(hours*7+2)%len(names_only)]
