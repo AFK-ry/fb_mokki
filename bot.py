@@ -582,7 +582,8 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
 def get_weather_data(index, data):
-    return f"Lämpötila: {data['hourly']['temperature_2m'][index]}°C\nTuuli: {data['hourly']['wind_speed_10m'][index]}m/s\nKosteus: {data['hourly']['relative_humidity_2m'][index]}%"
+    wind = round(data['hourly']['wind_speed_10m'][index] / 3.6, 1)
+    return f"Lämpötila: {data['hourly']['temperature_2m'][index]}°C\nTuuli: {wind}m/s\nKosteus: {data['hourly']['relative_humidity_2m'][index]}%"
 
 async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     weather_data = requests.get(weather_api).json()
