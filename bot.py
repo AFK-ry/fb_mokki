@@ -56,7 +56,7 @@ season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
 weather_friday_time = finnish_tz.localize(datetime(2024, 7, 19, 12, 0, 0))
 weather_saturday_time = finnish_tz.localize(datetime(2024, 7, 20, 12, 0, 0))
 
-weather_api = "https://api.open-meteo.com/v1/forecast?latitude=66.716602&longitude=24.683088&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
+weather_api = "https://api.open-meteo.com/v1/forecast?latitude=66.716602&longitude=24.683088&hourly=temperature_2m,precipitation_probability,rain,wind_speed_10m,relative_humidity_2m&forecast_days=14"
 
 def signup_is_live():
     current_time = datetime.now(finnish_tz)
@@ -583,7 +583,7 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def get_weather_data(index, data):
     wind = round(data['hourly']['wind_speed_10m'][index] / 3.6, 1)
-    return f"Lämpötila: {data['hourly']['temperature_2m'][index]}°C\nTuuli: {wind}m/s\nKosteus: {data['hourly']['relative_humidity_2m'][index]}%"
+    return f"Lämpötila: {data['hourly']['temperature_2m'][index]}°C\nTuuli: {wind}m/s\nKosteus: {data['hourly']['relative_humidity_2m'][index]}%\nSateen todennäköisyys: {data['hourly']['precipitation_probability'][index]}%\nSade: {data['hourly']['rain'][index]}mm"
 
 async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     weather_data = requests.get(weather_api).json()
