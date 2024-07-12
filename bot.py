@@ -588,6 +588,10 @@ def get_weather_data(index, data):
 async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     weather_data = requests.get(weather_api).json()
     result = "Raanutie 7\n\n"
+    given_time = datetime.strptime(weather_data["hourly"]["time"][0], "%Y-%m-%dT%H:%M").astimezone(finnish_tz)
+    if given_time > mokki_time:
+        result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+        result += f"{get_weather_data(index, weather_data)}\n\n"
     for index, hour in enumerate(weather_data["hourly"]["time"]):
         given_time = datetime.strptime(hour, "%Y-%m-%dT%H:%M").astimezone(finnish_tz)
         if given_time == mokki_time or given_time == weather_friday_time or given_time == weather_saturday_time:
