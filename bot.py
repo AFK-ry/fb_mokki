@@ -53,6 +53,11 @@ mokki_time = finnish_tz.localize(datetime(2024, 7, 18, 16, 0, 0))
 mokki_end = finnish_tz.localize(datetime(2024, 7, 21, 12, 0, 0))
 season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
 
+weather_friday_time = finnish_tz.localize(datetime(2024, 7, 19, 12, 0, 0))
+weather_saturday_time = finnish_tz.localize(datetime(2024, 7, 20, 12, 0, 0))
+
+weather_api = "https://api.open-meteo.com/v1/forecast?latitude=66.716602&longitude=24.683088&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
+
 def signup_is_live():
     current_time = datetime.now(finnish_tz)
     target_time = signup_time
@@ -208,6 +213,10 @@ def is_recent_game(game, hours=24):
         return True
     game_time = datetime.strptime(game["date"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
     return seperator < game_time and game["state"] == 3
+
+
+
+
 
 async def mokki_ilmo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
@@ -459,8 +468,7 @@ async def peleja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
             
 async def kys(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    random_number = random()
-    if random_number < 0.5:
+    if random() < 0.5:
         files = ['mattoteline.txt']
         line = pick_random_line(choice(files))
         await context.bot.send_message(chat_id=update.effective_chat.id, text=line)
@@ -572,7 +580,22 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     response = f"{phrase}{place}{type}"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
-    
+
+def get_weather_data(index, data):
+    return f"Lämpötila: {data['hourly']['temperature_2m'][index]}°C\nTuuli: {data['hourly']['wind_speed_10m'][index]}m/s\nKosteus: {data['hourly']['relative_humidity_2m'][index]}%"
+
+async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    weather_data = requests.get(weather_api).json()
+    result = "Raanutie 7\n\n"
+    for index, hour in enumerate(weather_data["hourly"]["time"]):
+        given_time = datetime.strptime(hour, "%Y-%m-%dT%H:%M").astimezone(finnish_tz)
+        if given_time == mokki_time or given_time == weather_friday_time or given_time == weather_saturday_time:
+            result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+            result += f"{get_weather_data(index, weather_data)}\n\n"
+    if result != "Raanutie 7\n\n":
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Säätietoja ei löytynyt")
 
         
 if __name__ == '__main__':
@@ -588,6 +611,7 @@ if __name__ == '__main__':
     kalja_handler = CommandHandler('kaljaa', kaljaa)
     peleja_handler = CommandHandler('peleja', peleja)
     laturi_handler = CommandHandler('laturi', laturi)
+    saa_handler = CommandHandler('saa', saa)
 
     application.add_handler(mokki_handler)
     application.add_handler(mokki_reply_handler)
@@ -599,6 +623,7 @@ if __name__ == '__main__':
     application.add_handler(kalja_handler)
     application.add_handler(peleja_handler)
     application.add_handler(laturi_handler)
+    application.add_handler(saa_handler)
 
     
     application.run_polling()
@@ -613,3 +638,4 @@ if __name__ == '__main__':
 # kaljaa - Mökillä juodut kaljat
 # peleja -  Pelejä viimeisen x tunnin aikana
 # laturi - Kuka hakee laturin
+# saa - Säätiedot mökille
