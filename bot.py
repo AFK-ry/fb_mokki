@@ -13,6 +13,7 @@ import requests
 import itertools
 from random import shuffle, random, choice
 import pytz
+import json
 
 max_int = 2147483647
 
@@ -57,6 +58,8 @@ weather_friday_time = finnish_tz.localize(datetime(2024, 7, 19, 12, 0, 0))
 weather_saturday_time = finnish_tz.localize(datetime(2024, 7, 20, 12, 0, 0))
 
 weather_api = "https://api.open-meteo.com/v1/forecast?latitude=66.716602&longitude=24.683088&hourly=temperature_2m,precipitation_probability,rain,wind_speed_10m,relative_humidity_2m&forecast_days=14"
+weather_api2 = "https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=66.716602&lon=24.683088"
+yrno_header = {'User-Agent': 'Fb_mokki https://github.com/AFK-ry/fb_mokki'}
 
 def signup_is_live():
     current_time = datetime.now(finnish_tz)
@@ -581,19 +584,39 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response = f"{phrase}{place}{type}"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
-def get_weather_data(index, data):
-    wind = round(data['hourly']['wind_speed_10m'][index] / 3.6, 1)
-    return f"Lämpötila: {data['hourly']['temperature_2m'][index]}°C\nTuuli: {wind}m/s\nKosteus: {data['hourly']['relative_humidity_2m'][index]}%\nSateen todennäköisyys: {data['hourly']['precipitation_probability'][index]}%\nSade: {data['hourly']['rain'][index]}mm"
+def get_weather_data(data):
+    details = data["data"]["instant"]["details"]
+    six_hours = data["data"]["next_6_hours"]["details"]
+    return f"Lämpötila: {details['air_temperature']}°C\nTuuli: {details['wind_speed']}m/s\nKosteus: {details['relative_humidity']}%\nSateen todennäköisyys: {six_hours['probability_of_precipitation']}%\nSade: {six_hours['precipitation_amount']}mm"
 
 async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    weather_data = requests.get(weather_api).json()
+    response = requests.get(weather_api2, headers=yrno_header)
+    weather_data = response.json()
     result = "Raanutie 7\n\n"
     current_time = datetime.now(finnish_tz)
-    for index, hour in enumerate(weather_data["hourly"]["time"]):
-        given_time = datetime.strptime(hour, "%Y-%m-%dT%H:%M").astimezone(finnish_tz)
-        if given_time == mokki_time or given_time == weather_friday_time or given_time == weather_saturday_time or (given_time > mokki_time and given_time > current_time and result == "Raanutie 7\n\n"):
+    thursday = 0
+    friday = 0
+    saturday = 0
+    for index, data in enumerate(weather_data["properties"]["timeseries"]):
+        given_time = datetime.strptime(data["time"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
+        if given_time >= mokki_time and thursday == 0:
             result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
-            result += f"{get_weather_data(index, weather_data)}\n\n"
+            result += f"{get_weather_data(data)}\n\n"
+            thursday = 1
+        if given_time >= weather_friday_time and friday == 0:
+            result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+            result += f"{get_weather_data(data)}\n\n"
+            friday = 1
+        if given_time >= weather_saturday_time and saturday == 0:
+            result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+            result += f"{get_weather_data(data)}\n\n"
+            saturday = 1
+        if given_time > mokki_time and given_time > current_time and result == "Raanutie 7\n\n":
+            result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+            result += f"{get_weather_data(data)}\n\n"
+        # if given_time == mokki_time or given_time == weather_friday_time or given_time == weather_saturday_time or (given_time > mokki_time and given_time > current_time and result == "Raanutie 7\n\n"):
+        #     result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+        #     result += f"{get_weather_data(data)}\n\n"
     if result != "Raanutie 7\n\n":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
     else:
