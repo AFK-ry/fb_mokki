@@ -40,25 +40,25 @@ service = build('sheets', 'v4', credentials=creds)
 spreadsheet_id = os.getenv('sheet_id')
 range_name = "'Infoo ja osallistujat'!C66:Q86"
 bed_range = "'Infoo ja osallistujat'!C110:G131"
-score_range = "'Infoo ja osallistujat'!AN28:AT46"
+score_range = "'Infoo ja osallistujat'!AN28:AT51"
 
 
 # Define the time zone
 finnish_tz = pytz.timezone('Europe/Helsinki')
 
 # Define the signup, payment, mokki start, and mokki end times in Finnish time
-signup_time = finnish_tz.localize(datetime(2024, 5, 10, 13, 37, 0))
-signup_end = finnish_tz.localize(datetime(2024, 7, 9, 3, 0, 0))
-payment_time = finnish_tz.localize(datetime(2024, 7, 10, 13, 37, 0))
-mokki_time = finnish_tz.localize(datetime(2024, 7, 18, 16, 0, 0))
-mokki_end = finnish_tz.localize(datetime(2024, 7, 21, 12, 0, 0))
-season_start = finnish_tz.localize(datetime(2024, 4, 20, 15, 0, 0))
+signup_time = finnish_tz.localize(datetime(2025, 5, 10, 13, 37, 0))
+signup_end = finnish_tz.localize(datetime(2025, 7, 9, 3, 0, 0))
+payment_time = finnish_tz.localize(datetime(2025, 6, 30, 13, 37, 10))
+mokki_time = finnish_tz.localize(datetime(2025, 7, 4, 16, 0, 0))
+mokki_end = finnish_tz.localize(datetime(2025, 7, 6, 12, 0, 0))
+season_start = finnish_tz.localize(datetime(2025, 4, 19, 0, 0, 0))
 
-weather_friday_time = finnish_tz.localize(datetime(2024, 7, 19, 12, 0, 0))
-weather_saturday_time = finnish_tz.localize(datetime(2024, 7, 20, 12, 0, 0))
+weather_friday_time = finnish_tz.localize(datetime(2025,  7, 4, 12, 0, 0))
+weather_saturday_time = finnish_tz.localize(datetime(2025, 7, 5, 12, 0, 0))
 
 weather_api = "https://api.open-meteo.com/v1/forecast?latitude=66.716602&longitude=24.683088&hourly=temperature_2m,precipitation_probability,rain,wind_speed_10m,relative_humidity_2m&forecast_days=14"
-weather_api2 = "https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=66.716602&lon=24.683088"
+weather_api2 = "https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=64.977558&lon=27.552603"
 yrno_header = {'User-Agent': 'Fb_mokki https://github.com/AFK-ry/fb_mokki'}
 
 def signup_is_live():
@@ -87,9 +87,9 @@ def find_index_of_name(list_of_lists, name):
             return index
     return -1  
 
-def time_remaining():
+def time_remaining(destination_time):
     current_time = datetime.now(finnish_tz)
-    remaining_time = mokki_time - current_time
+    remaining_time = destination_time - current_time
 
     # Extract days, hours, minutes, and seconds from the remaining time
     days = remaining_time.days
@@ -97,7 +97,7 @@ def time_remaining():
     minutes, seconds = divmod(remainder, 60)
 
     # Construct the string with the remaining time
-    time_string = f"Mökkiin aikaa: {days} päivää, {hours} tuntia, {minutes} minuuttia, ja {seconds} sekunttia"
+    time_string = f"{days} päivää, {hours} tuntia, {minutes} minuuttia, ja {seconds} sekunttia"
     return time_string
 
 def find_player(players, name):
@@ -108,7 +108,7 @@ def find_player(players, name):
 
 def get_players():
     try:
-        response = requests.get("https://api.frisbeer.win/API/players/")
+        response = requests.get("https://api.afkry.fi/API/players/")
         response.raise_for_status()  # Raise an exception for non-2xx status codes
         return response.json()  # Return the response content parsed as JSON
     except requests.exceptions.RequestException as e:
@@ -117,7 +117,7 @@ def get_players():
 
 def get_games():
     try:
-        response = requests.get("https://api.frisbeer.win/API/games/")
+        response = requests.get("https://api.afkry.fi/API/games/")
         response.raise_for_status()  # Raise an exception for non-2xx status codes
         return response.json()  # Return the response content parsed as JSON
     except requests.exceptions.RequestException as e:
@@ -240,14 +240,15 @@ async def mokki_ilmo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def mokki_alkaa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mokki_is_live() is False:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=time_remaining())    
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Mökkiin aikaa: {time_remaining(mokki_time)}")    
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Mökkiin aikaa: Mökki on jo, miksi kyselet etkä pelaa")
 
 async def maksettu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if(payment_is_live() != True):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Maksu ei ole auki.")
+        time_string = time_remaining(payment_time)
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Maksu ei ole auki. Maksuun aikaa: {time_remaining(payment_time)}")
         return
     if(len(args) < 1):
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Kerro kuka olet '/maksettu <mökkeilijän nimi>'")
@@ -260,43 +261,56 @@ async def maksettu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     names = [cell for cell in names if cell]
     names_only = [cell[0] for cell in names if cell]
     name = ' '.join(args)
-    if name not in names_only:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="'{}' ei ole ilmonnut mökille".format(name))
-        return
+    # if name not in names_only:
+    #     await context.bot.send_message(chat_id=update.effective_chat.id, text="'{}' ei ole ilmonnut mökille".format(name))
+    #     return
 
-    sleeps = service.spreadsheets().values().get(
-            spreadsheetId=spreadsheet_id,
-            range=bed_range
-        ).execute()
-    beds = sleeps.get('values', [])
-    beds = [cell for cell in beds if cell]
-    bed_names_only = [cell[0] for cell in beds if cell]
+    # sleeps = service.spreadsheets().values().get(
+    #         spreadsheetId=spreadsheet_id,
+    #         range=bed_range
+    #     ).execute()
+    # beds = sleeps.get('values', [])
+    # beds = [cell for cell in beds if cell]
+    # bed_names_only = [cell[0] for cell in beds if cell]
     index = find_index_of_name(names, name)
-    if name in bed_names_only:
+    # if name in bed_names_only:
+    if name in names_only:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="'{}' on jo maksanut".format(name))
         return
-    bed_count = len(bed_names_only)
-    beds.append([name])
+    # bed_count = len(bed_names_only)
+    bed_count = len(names_only)
+    # beds.append([name])
+    print(names)
+    names.append([name, '', '', '', '', '', '', 'kyllä'])
+    # request_body = {
+    #     'values': beds
+    # }
     request_body = {
-        'values': beds
+        'values': names
     }
+    # result = service.spreadsheets().values().update(
+    #     spreadsheetId=spreadsheet_id,
+    #     range=bed_range,
+    #     valueInputOption='USER_ENTERED',
+    #     body=request_body
+    # ).execute()
     result = service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
-        range=bed_range,
+        range=range_name,
         valueInputOption='USER_ENTERED',
         body=request_body
     ).execute()
-    if(index > -1):
-        names[index][7] = 'kyllä'
-        request_body = {
-            'values': names
-        }
-        result = service.spreadsheets().values().update(
-            spreadsheetId=spreadsheet_id,
-            range=range_name,
-            valueInputOption='USER_ENTERED',
-            body=request_body
-        ).execute()
+    # if(index > -1):
+        # names[index][7] = 'kyllä'
+        # request_body = {
+        #     'values': names
+        # }
+        # result = service.spreadsheets().values().update(
+        #     spreadsheetId=spreadsheet_id,
+        #     range=range_name,
+        #     valueInputOption='USER_ENTERED',
+        #     body=request_body
+        # ).execute()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Kiitos maksusta. {} nukkuu sijalla {}".format(name, bed_count + 1))
 
 def get_sijoituket():
@@ -313,7 +327,8 @@ def get_sijoituket():
         player = find_player(players, name)
         original = 0
         try:
-            original = int(names[index][5])
+            if index < len(names) and len(names[index]) > 5:
+                original = int(names[index][5])
         except ValueError:
             pass
         if player == -1:
@@ -358,6 +373,9 @@ async def create_teams(update: Update, context: ContextTypes.DEFAULT_TYPE):
     names = signups.get('values', [])
     names = [cell for cell in names if cell]
     names_only = [cell[0] for cell in names if cell]
+    if len(names_only) < numb_teams * 6:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text=f"Liian vähän pelaajia {len(names_only)}/{numb_teams * 6} tiimin tekemiseen")
+        return
     players = get_players()
     result = []
     for index, name in enumerate(names_only):
@@ -471,7 +489,7 @@ async def peleja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
             
 async def kys(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if random() < 0.5:
+    if random() < 0.01:
         files = ['mattoteline.txt']
         line = pick_random_line(choice(files))
         await context.bot.send_message(chat_id=update.effective_chat.id, text=line)
@@ -592,17 +610,17 @@ def get_weather_data(data):
 async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
     response = requests.get(weather_api2, headers=yrno_header)
     weather_data = response.json()
-    result = "Raanutie 7\n\n"
+    result = "Pekkalantie 4B\n\n"
     current_time = datetime.now(finnish_tz)
     thursday = 0
     friday = 0
     saturday = 0
     for index, data in enumerate(weather_data["properties"]["timeseries"]):
         given_time = datetime.strptime(data["time"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
-        if given_time >= mokki_time and thursday == 0:
-            result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
-            result += f"{get_weather_data(data)}\n\n"
-            thursday = 1
+        # if given_time >= mokki_time and thursday == 0:
+        #     result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
+        #     result += f"{get_weather_data(data)}\n\n"
+        #     thursday = 1
         if given_time >= weather_friday_time and friday == 0:
             result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
             result += f"{get_weather_data(data)}\n\n"
@@ -611,13 +629,13 @@ async def saa(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
             result += f"{get_weather_data(data)}\n\n"
             saturday = 1
-        if given_time > mokki_time and given_time > current_time and result == "Raanutie 7\n\n":
+        if given_time > mokki_time and given_time > current_time and result == "Pekkalantie 4B\n\n":
             result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
             result += f"{get_weather_data(data)}\n\n"
         # if given_time == mokki_time or given_time == weather_friday_time or given_time == weather_saturday_time or (given_time > mokki_time and given_time > current_time and result == "Raanutie 7\n\n"):
         #     result += f"{given_time.strftime('%d.%m.%Y klo %H:%M')}\n"
         #     result += f"{get_weather_data(data)}\n\n"
-    if result != "Raanutie 7\n\n":
+    if result != "Pekkalantie 4B\n\n":
         await context.bot.send_message(chat_id=update.effective_chat.id, text=result)
     else:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Säätietoja ei löytynyt")
