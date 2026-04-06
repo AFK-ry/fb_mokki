@@ -38,7 +38,7 @@ service = build('sheets', 'v4', credentials=creds)
 
 # Define the spreadsheet ID and range of cells to read
 spreadsheet_id = os.getenv('sheet_id')
-range_name = "'Infoo ja osallistujat'!C66:Q86"
+range_name = "'Infoo ja osallistujat'!C66:Q90"
 bed_range = "'Infoo ja osallistujat'!C110:G131"
 score_range = "'Infoo ja osallistujat'!AN28:AT51"
 
@@ -204,7 +204,7 @@ def get_teams_string(games):
     return result_string
 
 def is_mokki_game(game):
-    mokki_start = season_start
+    mokki_start = mokki_time
     game_time = datetime.strptime(game["date"], "%Y-%m-%dT%H:%M:%SZ").astimezone(finnish_tz)
     return mokki_end > game_time and mokki_start < game_time and game["state"] == 3
 
