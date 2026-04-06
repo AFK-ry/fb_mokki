@@ -47,15 +47,15 @@ score_range = "'Infoo ja osallistujat'!AN28:AT51"
 finnish_tz = pytz.timezone('Europe/Helsinki')
 
 # Define the signup, payment, mokki start, and mokki end times in Finnish time
-signup_time = finnish_tz.localize(datetime(2025, 5, 10, 13, 37, 0))
-signup_end = finnish_tz.localize(datetime(2025, 7, 9, 3, 0, 0))
-payment_time = finnish_tz.localize(datetime(2025, 6, 30, 13, 37, 10))
-mokki_time = finnish_tz.localize(datetime(2025, 7, 4, 16, 0, 0))
-mokki_end = finnish_tz.localize(datetime(2025, 7, 6, 12, 0, 0))
-season_start = finnish_tz.localize(datetime(2025, 4, 19, 0, 0, 0))
+signup_time = finnish_tz.localize(datetime(2026, 5, 10, 13, 37, 0))
+signup_end = finnish_tz.localize(datetime(2026, 7, 9, 3, 0, 0))
+payment_time = finnish_tz.localize(datetime(2026, 6, 30, 13, 37, 10))
+mokki_time = finnish_tz.localize(datetime(2026, 7, 4, 16, 0, 0))
+mokki_end = finnish_tz.localize(datetime(2026, 7, 6, 12, 0, 0))
+season_start = finnish_tz.localize(datetime(2026, 4, 19, 0, 0, 0))
 
-weather_friday_time = finnish_tz.localize(datetime(2025,  7, 4, 12, 0, 0))
-weather_saturday_time = finnish_tz.localize(datetime(2025, 7, 5, 12, 0, 0))
+weather_friday_time = finnish_tz.localize(datetime(2026,  7, 4, 12, 0, 0))
+weather_saturday_time = finnish_tz.localize(datetime(2026, 7, 5, 12, 0, 0))
 
 weather_api = "https://api.open-meteo.com/v1/forecast?latitude=66.716602&longitude=24.683088&hourly=temperature_2m,precipitation_probability,rain,wind_speed_10m,relative_humidity_2m&forecast_days=14"
 weather_api2 = "https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=64.977558&lon=27.552603"
