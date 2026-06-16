@@ -47,11 +47,11 @@ score_range = "'Infoo ja osallistujat'!AN28:AT51"
 finnish_tz = pytz.timezone('Europe/Helsinki')
 
 # Define the signup, payment, mokki start, and mokki end times in Finnish time
-signup_time = finnish_tz.localize(datetime(2026, 5, 10, 13, 37, 0))
-signup_end = finnish_tz.localize(datetime(2026, 7, 9, 3, 0, 0))
-payment_time = finnish_tz.localize(datetime(2026, 6, 30, 13, 37, 10))
-mokki_time = finnish_tz.localize(datetime(2026, 7, 4, 16, 0, 0))
-mokki_end = finnish_tz.localize(datetime(2026, 7, 6, 12, 0, 0))
+signup_time = finnish_tz.localize(datetime(2026, 4, 14, 13, 37, 0))
+signup_end = finnish_tz.localize(datetime(2026, 7, 3, 3, 0, 0))
+payment_time = finnish_tz.localize(datetime(2026, 6, 13, 13, 37, 10))
+mokki_time = finnish_tz.localize(datetime(2026, 7, 3, 16, 0, 0))
+mokki_end = finnish_tz.localize(datetime(2026, 7, 5, 12, 0, 0))
 season_start = finnish_tz.localize(datetime(2026, 4, 19, 0, 0, 0))
 
 weather_friday_time = finnish_tz.localize(datetime(2026,  7, 4, 12, 0, 0))
@@ -224,7 +224,7 @@ def is_recent_game(game, hours=24):
 async def mokki_ilmo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if(signup_is_live() != True):
-        await context.bot.send_message(chat_id=update.effective_chat.id, text="Ilmo ei ole auki. Palaa asiaan 10.5 klo 13:37")   
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="Ilmo ei ole auki. Palaa asiaan 14.4 klo 13:37")   
     elif(signup_is_dead() == True): 
         await context.bot.send_message(chat_id=update.effective_chat.id, text="Ilmo on päättynyt. Ole yhteydessä järjestäjään jos vielä haluat mukaan")   
     elif(len(args) < 1):
@@ -261,56 +261,44 @@ async def maksettu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     names = [cell for cell in names if cell]
     names_only = [cell[0] for cell in names if cell]
     name = ' '.join(args)
-    # if name not in names_only:
-    #     await context.bot.send_message(chat_id=update.effective_chat.id, text="'{}' ei ole ilmonnut mökille".format(name))
-    #     return
+    if name not in names_only:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="'{}' ei ole ilmonnut mökille".format(name))
+        return
 
-    # sleeps = service.spreadsheets().values().get(
-    #         spreadsheetId=spreadsheet_id,
-    #         range=bed_range
-    #     ).execute()
-    # beds = sleeps.get('values', [])
-    # beds = [cell for cell in beds if cell]
-    # bed_names_only = [cell[0] for cell in beds if cell]
+    sleeps = service.spreadsheets().values().get(
+            spreadsheetId=spreadsheet_id,
+            range=bed_range
+        ).execute()
+    beds = sleeps.get('values', [])
+    beds = [cell for cell in beds if cell]
+    bed_names_only = [cell[0] for cell in beds if cell]
     index = find_index_of_name(names, name)
-    # if name in bed_names_only:
-    if name in names_only:
+    if name in bed_names_only:
         await context.bot.send_message(chat_id=update.effective_chat.id, text="'{}' on jo maksanut".format(name))
         return
-    # bed_count = len(bed_names_only)
-    bed_count = len(names_only)
-    # beds.append([name])
-    print(names)
-    names.append([name, '', '', '', '', '', '', 'kyllä'])
-    # request_body = {
-    #     'values': beds
-    # }
+    bed_count = len(bed_names_only)
+    beds.append([name])
     request_body = {
-        'values': names
+        'values': beds
     }
-    # result = service.spreadsheets().values().update(
-    #     spreadsheetId=spreadsheet_id,
-    #     range=bed_range,
-    #     valueInputOption='USER_ENTERED',
-    #     body=request_body
-    # ).execute()
     result = service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id,
-        range=range_name,
+        range=bed_range,
         valueInputOption='USER_ENTERED',
         body=request_body
     ).execute()
-    # if(index > -1):
-        # names[index][7] = 'kyllä'
-        # request_body = {
-        #     'values': names
-        # }
-        # result = service.spreadsheets().values().update(
-        #     spreadsheetId=spreadsheet_id,
-        #     range=range_name,
-        #     valueInputOption='USER_ENTERED',
-        #     body=request_body
-        # ).execute()
+    if(index > -1):
+        names[index][7] = 'kyllä'
+        print(index)
+        request_body = {
+            'values': names
+        }
+        result = service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range=range_name,
+            valueInputOption='USER_ENTERED',
+            body=request_body
+        ).execute()
     await context.bot.send_message(chat_id=update.effective_chat.id, text="Kiitos maksusta. {} nukkuu sijalla {}".format(name, bed_count + 1))
 
 def get_sijoituket():
@@ -489,7 +477,7 @@ async def peleja(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=return_text)
             
 async def kys(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if random() < 0.01:
+    if random() < 0.05:
         files = ['mattoteline.txt']
         line = pick_random_line(choice(files))
         await context.bot.send_message(chat_id=update.effective_chat.id, text=line)
@@ -514,7 +502,7 @@ async def button(update: Update, context: CallbackContext):
     query = update.callback_query
     user_param = context.user_data.get('user_param')
     name = ' '.join(user_param)
-    if query.data == 'auto' or query.data == 'ei_auto':
+    if query.data == 'auto' or query.data == 'ei_auto': 
         keyboard = [[InlineKeyboardButton("Kyllä", callback_data='torstai'),
                  InlineKeyboardButton("En", callback_data='ei_torstai')]]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -592,12 +580,14 @@ async def laturi(update: Update, context: ContextTypes.DEFAULT_TYPE):
         type = f" Niillä pitäs olla ainakin {colors[(hours*7)%len(colors)]} {devices[(hours*7)%len(devices)]} laturi mutta ota kaikki mitä löydät!"
     else:
         place = ''
-        if random() < 0.5:
-            place = f" {name2} jätti sen {choice(places)}."
         type = ''
-        if random() < 0.5:
-            type = f" Semmonen {choice(colors)} {choice(devices)} laturi."
-        phrase = choice(phrases)
+        phrase = f"{update.effective_user.username} on laturi"
+        #if random() < 0.5:
+            #place = f" {name2} jätti sen {choice(places)}."
+        #type = ''
+        #if random() < 0.5:
+            #type = f" Semmonen {choice(colors)} {choice(devices)} laturi."
+        #phrase = choice(phrases)
 
     response = f"{phrase}{place}{type}"
     await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
